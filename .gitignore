@@ -1,0 +1,19 @@
+# Node dependencies
+node_modules/
+
+# Build artifacts (The compiled C code)
+build/
+*.node
+*.o
+*.a
+
+# Debug logs
+*.log
+
+# VS Code settings (optional)
+.vscode/
+
+# Executables you made earlier
+my_heap
+full_heap
+test_heap
