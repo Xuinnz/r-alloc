@@ -2,28 +2,28 @@
 #include "allocator.h"
 #include <stdbool.h>
 
-// Wrapper for init_heap
+// wrapper for init_heap
 napi_value InitHeapWrapper(napi_env env, napi_callback_info info) {
     init_heap();
     return NULL; // Returns undefined to JS
 }
 
-// Wrapper for r_alloc
+// wrapper for r_alloc
 napi_value AllocWrapper(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1];
     uint32_t size_requested;
 
-    // 1. Get arguments from JS
+    // 1. get arg from js
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
 
-    // 2. Convert JS Number -> C Int
+    // 2. convert js number -> c number
     napi_get_value_uint32(env, args[0], &size_requested);
 
-    // 3. Call YOUR C function
+    // 3. call the r_alloc c function
     void* resultPtr = r_alloc(size_requested);
 
-    // 4. Return the address as a BigInt (so JS can see the address)
+    // 4. return as big int
     napi_value output;
     napi_create_bigint_uint64(env, (uint64_t)resultPtr, &output);
     
@@ -39,32 +39,40 @@ napi_value FreeWrapper(napi_env env, napi_callback_info info) {
     // Get the arguments
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
 
-    // Convert JS BigInt to C uint64 (The memory address)
+    // covert JS BigInt to C uint64 (The memory address)
     napi_get_value_bigint_uint64(env, args[0], &ptr_value, &lossless);
 
-    // Cast it back to a void pointer
+    // cast it back to a void pointer
     void* ptr = (void*)ptr_value;
 
-    // Call the engine
+    // call r_free
     r_free(ptr);
 
     return NULL;
 }
 
-// Module Initialization (Like 'module.exports')
-napi_value Init(napi_env env, napi_value exports) {
-    napi_value fn_init, fn_alloc, fn_free;
+napi_value DefragWrapper(napi_env env, napi_callback_info info){
+    r_defrag();
+    return NULL;
+}
 
-    // Export init_heap
+// initialization of function calls
+napi_value Init(napi_env env, napi_value exports) {
+    napi_value fn_init, fn_alloc, fn_free, fn_defrag;
+
+    // export init_heap
     napi_create_function(env, NULL, 0, InitHeapWrapper, NULL, &fn_init);
     napi_set_named_property(env, exports, "init", fn_init);
 
-    // Export r_alloc
+    // export r_alloc
     napi_create_function(env, NULL, 0, AllocWrapper, NULL, &fn_alloc);
     napi_set_named_property(env, exports, "alloc", fn_alloc);
-    // Export r_free
+    // export r_free
     napi_create_function(env, NULL, 0, FreeWrapper, NULL, &fn_free);
     napi_set_named_property(env, exports, "free", fn_free);
+    //export r_defrag
+    napi_create_function(env, NULL, 0, DefragWrapper, NULL, &fn_defrag);
+    napi_set_named_property(env, exports, "defrag", fn_defrag);
 
     return exports;
 }

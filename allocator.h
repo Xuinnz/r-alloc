@@ -6,5 +6,6 @@
 void init_heap();
 void* r_alloc(uint32_t size);
 void r_free(void* ptr);
+void r_defrag();
 
 #endif

@@ -39,6 +39,8 @@ void init_heap(){
 }
 //my custom alloc
 void *r_alloc(uint32_t size){
+	//align size, pad size to nearest multiple of 8
+	size = (size + 8 - 1) & ~(8 - 1);
 	struct heapchunk_t *current = my_heap.start;
 	//find a free block, walk thru linked list
 	while (current != NULL){
@@ -86,5 +88,21 @@ void r_free(void *ptr){
 		current -> next = current -> next -> next;
 	}
 	printf("Block is now %u bytes\n", current -> size);
+}
+
+void r_defrag(){
+	struct heapchunk_t *current = my_heap.start;
+	int merges = 0;
+
+	while (current && current -> next){
+		if(!current -> inuse && !current -> next -> inuse){
+			current -> size += sizeof(struct heapchunk_t) + current -> next -> size;
+			current -> next = current -> next -> next;
+			merges++;
+		} else{
+			current = current -> next;
+		}
+	}
+	printf("Defrag Complete. Merged %d blocks", merges);
 }
 

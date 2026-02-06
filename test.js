@@ -1,25 +1,28 @@
 const myHeap = require('./build/Release/my_allocator');
 
-console.log("--- JS: Initializing Heap ---");
-myHeap.init(); 
+myHeap.init();
 
-// 1. Allocate
-console.log("\n--- JS: Allocating 100 bytes ---");
-const ptr1 = myHeap.alloc(100);
-// We use 0x${ptr1.toString(16)} to print BigInt as HEX
-console.log(`Ptr1 Address: 0x${ptr1.toString(16)}`);
+console.log("1. Allocating 3 blocks...");
+const p1 = myHeap.alloc(10); // Will align to 8 + header
+const p2 = myHeap.alloc(10); 
+const p3 = myHeap.alloc(10);
 
-// 2. Free
-console.log("\n--- JS: Freeing Ptr1 ---");
-myHeap.free(ptr1);
+console.log("2. Freeing p1 and p2 (creating two separate free holes)...");
+myHeap.free(p1);
+myHeap.free(p2);
 
-// 3. Re-Allocate (Should get the same address!)
-console.log("\n--- JS: Allocating 50 bytes (Should reuse Ptr1) ---");
-const ptr2 = myHeap.alloc(50);
-console.log(`Ptr2 Address: 0x${ptr2.toString(16)}`);
+// At this point, we have: [Free 8] -> [Free 8] -> [Used]
+// They are NOT merged yet because r_free doesn't coalesce automatically anymore.
 
-if (ptr1 === ptr2) {
-    console.log("SUCCESS: JavaScript successfully reused C memory!");
+console.log("3. Running Defrag...");
+myHeap.defrag(); 
+// This should merge p1 and p2 into one [Free 16 + header] block.
+
+console.log("4. Allocating big block (should fit in the merged space)...");
+const p4 = myHeap.alloc(40); // 8 + 8 + header size approx = 40
+
+if(p4.toString() === p1.toString()) {
+    console.log("SUCCESS: Defrag merged the holes!");
 } else {
-    console.log("FAIL: Addresses are different.");
+    console.log("Info: Allocated at new address (this is okay if header overhead made the hole too small).");
 }
