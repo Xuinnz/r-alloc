@@ -1,28 +1,53 @@
-const myHeap = require('./build/Release/my_allocator');
+const myAllocator = require('./build/Release/my_allocator');
 
-myHeap.init();
+// Lifetimes Enum (Must match C enum)
+const LIFETIME = {
+    TRANSIENT: 0,
+    INTERMEDIATE: 1,
+    PERSISTENT: 2
+};
 
-console.log("1. Allocating 3 blocks...");
-const p1 = myHeap.alloc(10); // Will align to 8 + header
-const p2 = myHeap.alloc(10); 
-const p3 = myHeap.alloc(10);
+console.log("=== TEST: Arena Allocator Strategy ===");
 
-console.log("2. Freeing p1 and p2 (creating two separate free holes)...");
-myHeap.free(p1);
-myHeap.free(p2);
+// 1. Initialize
+console.log("\n[1] Initializing Arenas...");
+myAllocator.initArenas();
 
-// At this point, we have: [Free 8] -> [Free 8] -> [Used]
-// They are NOT merged yet because r_free doesn't coalesce automatically anymore.
+// 2. Allocating in Transient (Bump Pointer Check)
+console.log("\n[2] Allocating 3 objects in Transient Arena...");
+const t1 = myAllocator.arenaAlloc(10, LIFETIME.TRANSIENT);
+const t2 = myAllocator.arenaAlloc(10, LIFETIME.TRANSIENT);
+const t3 = myAllocator.arenaAlloc(10, LIFETIME.TRANSIENT);
 
-console.log("3. Running Defrag...");
-myHeap.defrag(); 
-// This should merge p1 and p2 into one [Free 16 + header] block.
+console.log(`    T1 Address: 0x${t1.toString(16)}`);
+console.log(`    T2 Address: 0x${t2.toString(16)}`);
+console.log(`    T3 Address: 0x${t3.toString(16)}`);
 
-console.log("4. Allocating big block (should fit in the merged space)...");
-const p4 = myHeap.alloc(40); // 8 + 8 + header size approx = 40
+// Calculate distance between pointers (Should be 16 bytes: 10 rounded to 8, plus header? No header in arena!)
+// Wait, your arena logic DOES align to 8. So 10 -> 16 bytes.
+const diff = BigInt(t2) - BigInt(t1);
+console.log(`    -> Bump Distance: ${diff} bytes (Expected ~16)`);
 
-if(p4.toString() === p1.toString()) {
-    console.log("SUCCESS: Defrag merged the holes!");
+
+// 3. Allocating in Persistent (Isolation Check)
+console.log("\n[3] Allocating 1 object in Persistent Arena...");
+const p1 = myAllocator.arenaAlloc(50, LIFETIME.PERSISTENT);
+console.log(`    P1 Address: 0x${p1.toString(16)} (Should be far from T1)`);
+
+
+// 4. The Reset Test (The "Thesis Moment")
+console.log("\n[4] Resetting Transient Arena (Wiping Clean)...");
+myAllocator.arenaReset(LIFETIME.TRANSIENT);
+
+
+// 5. Re-Allocating (Reuse Check)
+console.log("\n[5] Allocating New Transient Object...");
+const new_t1 = myAllocator.arenaAlloc(10, LIFETIME.TRANSIENT);
+console.log(`    New T1 Address: 0x${new_t1.toString(16)}`);
+
+if (t1 === new_t1) {
+    console.log("\n[SUCCESS] The allocator reused the exact same memory address!");
+    console.log("          This proves O(1) bulk deallocation works.");
 } else {
-    console.log("Info: Allocated at new address (this is okay if header overhead made the hole too small).");
+    console.log("\n[FAIL] Address mismatch. The pointer did not reset correctly.");
 }

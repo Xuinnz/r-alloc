@@ -57,6 +57,40 @@ The goal of this project is to:
    node test.js
    ```
 
+## Updates
+# February 7, 2026
+### Added Arena-Based Memory Allocation
+
+To optimize memory allocation, the project added an **arena-based memory management**. This approach reduces fragmentation and improves allocation speed by pre-allocating memory chunks for specific lifetimes.
+
+#### Arenas
+
+The memory manager defines three arenas, each tailored for a specific lifetime:
+
+- **Transient Arena**: For short-lived allocations.
+- **Intermediate Arena**: For medium-lived allocations.
+- **Persistent Arena**: For long-lived allocations.
+
+#### Functions
+
+- **`init_arenas()`**  
+  Initializes the three arenas (`transient`, `intermediate`, and `persistent`) with a fixed chunk size.
+
+- **`r_arena(size, lifetime)`**  
+  Allocates memory from the specified arena based on the `lifetime` parameter. Lifetimes can be:
+  - `LIFETIME_TRANSIENT`
+  - `LIFETIME_INTERMEDIATE`
+  - `LIFETIME_PERSISTENT`
+
+- **`r_reset(lifetime)`**  
+  Resets the specified arena with bump pointer, making all its memory available for reuse.
+
+#### Benefits
+
+- Faster allocation and deallocation due to the use of bump pointers.
+- Reduced fragmentation by grouping allocations with similar lifetimes.
+- Simplified memory management for temporary and persistent data.
+
 ## Disclaimer
 
 This project is for **educational purposes only** and is not intended for production use. It is designed to help developers understand the basics of memory management and the interaction between C/C++ and JavaScript through N-API.
