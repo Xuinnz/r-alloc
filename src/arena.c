@@ -2,71 +2,55 @@
 #include "allocator.h"
 #include <stdio.h>
 
-struct arena_t transient_arena;
-struct arena_t intermediate_arena;
-struct arena_t persistent_arena;
+arena_t* create_arena(size_t size, lifetime_t policy){
+    arena_t* new_arena = (arena_t*)r_alloc(sizeof(arena_t));
+    new_arena -> base = r_alloc(size);
+    new_arena -> current = new_arena -> base;
+    new_arena -> size = 0;
+    new_arena -> capacity = size;
+    new_arena-> policy = policy;
 
-#define ARENA_CHUNK_SIZE 1024
-
-//r_alloc for every instance of arena
-void init_single_arena(struct arena_t* arena, size_t size){
-    arena -> base = r_alloc(size);
-    arena -> current = arena -> base;
-    arena -> size = size;
+    return new_arena;
 }
 
-void init_arenas(){
-    init_heap();
-
-    init_single_arena(&transient_arena, ARENA_CHUNK_SIZE);
-    init_single_arena(&intermediate_arena, ARENA_CHUNK_SIZE);
-    init_single_arena(&persistent_arena, ARENA_CHUNK_SIZE);
-
-    printf("3 Arenas Initialized");
-}
-
-void* r_arena(size_t size, lifetime_t lifetime){
-    struct arena_t* target = NULL;
-
-    switch(lifetime){
-        case LIFETIME_TRANSIENT:
-            target = &transient_arena;
-            break;
-        case LIFETIME_INTERMEDIATE:
-            target = &intermediate_arena;
-            break;
-        case LIFETIME_PERSISTENT:
-            target = &persistent_arena;
-            break;
-    }
-    //padding
+void* r_arena(arena_t* arena, size_t size){
     size = (size + 7) & ~7;
-    if((char*) target -> current + size <= (char*)target->base + target->size){
-        void* ptr = target -> current;
-        target -> current = (char*)target -> current + size;
-        return ptr;
+
+    if(arena -> policy == LIFETIME_TRANSIENT){
+        if ((char*)arena -> current + size <= (char*)arena -> base + arena -> capacity){
+            void* ptr = arena -> current;
+            arena -> current = (char*)arena -> current + size;
+            arena -> size += size;
+            return ptr;
+        }
     }
-    printf("Arena Overflow! Lifetime: %d", lifetime);
+    else{
+        if ((char*)arena -> current + size <= (char*)arena -> base + arena -> capacity){
+            void* ptr = arena -> current;
+            arena -> current = (char*)arena -> current + size;
+            arena -> size += size;
+            return ptr;
+        }
+    }
+
+    printf("Arena Overflow! Capacity: %lu\n", arena->capacity);
     return NULL;
 }
 
-void r_reset(lifetime_t lifetime){
-    struct arena_t* target = NULL;
-    switch(lifetime){
-        case LIFETIME_TRANSIENT:
-            target = &transient_arena;
-            break;
-        case LIFETIME_INTERMEDIATE:
-            target = &intermediate_arena;
-            break;
-        case LIFETIME_PERSISTENT:
-            target = &persistent_arena;
-            break;
+void r_reset(arena_t* arena){
+    if (arena && arena -> policy == LIFETIME_TRANSIENT){
+        arena -> current = arena -> base;
+        arena -> size = 0;
+        printf("Arena Reset (Transient)");
     }
-    if (target){
-        target -> current = target -> base;
-        printf("Arena Reset: Lifetime %d\n", lifetime);
+    else {
+        printf("Warning: r_reset only for transient lifetimes");
     }
 }
 
-
+void r_destroy(arena_t* arena){
+    if(arena){
+        r_free(arena -> base);
+        r_free(arena);
+    }
+}

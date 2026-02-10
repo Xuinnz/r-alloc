@@ -10,14 +10,17 @@ typedef enum {
     LIFETIME_PERSISTENT
 } lifetime_t;
 
-struct arena_t{
-    void* base;
-    void *current;
-    size_t size;
-};
+typedef struct arena_t {
+    void* base;          // start of memory region
+    void* current;       // current bump pointer
+    size_t size;         // current usage (offset)
+    size_t capacity;     // max size
+    lifetime_t policy;   // the strategy this arena uses
+} arena_t;
 
-void init_arenas();
-void* r_arena(size_t size, lifetime_t lifetime);
-void r_reset(lifetime_t lifetime);
+arena_t* create_arena(size_t size, lifetime_t policy);
+void* r_arena(arena_t* arena, size_t size);
+void r_reset(arena_t* arena);
+void r_destroy(arena_t* arena);
 
 #endif

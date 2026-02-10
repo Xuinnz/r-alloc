@@ -56,44 +56,81 @@ napi_value DefragWrapper(napi_env env, napi_callback_info info){
     r_defrag();
     return NULL;
 }
-//wrapper for init_arena
-napi_value ArenaInitWrapper(napi_env env, napi_callback_info info) {
-    init_arenas();
-    return NULL;
-}
-//wrapper for r_arena
-napi_value ArenaAllocWrapper(napi_env env, napi_callback_info info) {
+// Wrapper for create_arena
+napi_value CreateArenaWrapper(napi_env env, napi_callback_info info) {
     size_t argc = 2;
     napi_value args[2];
-    uint32_t size, lifetime;
+    uint32_t size, policy;
 
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
     napi_get_value_uint32(env, args[0], &size);
-    napi_get_value_uint32(env, args[1], &lifetime);
+    napi_get_value_uint32(env, args[1], &policy);
 
-    void* ptr = r_arena(size, (lifetime_t)lifetime);
-    
+    // Call YOUR function
+    arena_t* arena = create_arena(size, (lifetime_t)policy);
+
+    napi_value output;
+    napi_create_bigint_uint64(env, (uint64_t)arena, &output);
+    return output;
+}
+
+// Wrapper for r_arena
+napi_value ArenaAllocWrapper(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2];
+    uint64_t arena_ptr_val;
+    uint32_t size;
+    bool lossless;
+
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    napi_get_value_bigint_uint64(env, args[0], &arena_ptr_val, &lossless);
+    arena_t* arena = (arena_t*)arena_ptr_val;
+
+    napi_get_value_uint32(env, args[1], &size);
+
+    // Call YOUR function
+    void* ptr = r_arena(arena, size);
+
     napi_value output;
     napi_create_bigint_uint64(env, (uint64_t)ptr, &output);
     return output;
 }
-//wrapper for r_reset
+
+// Wrapper for r_reset
 napi_value ArenaResetWrapper(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1];
-    uint32_t lifetime;
+    uint64_t arena_ptr_val;
+    bool lossless;
 
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
-    napi_get_value_uint32(env, args[0], &lifetime);
+    napi_get_value_bigint_uint64(env, args[0], &arena_ptr_val, &lossless);
+    arena_t* arena = (arena_t*)arena_ptr_val;
 
-    r_reset((lifetime_t)lifetime);
+    // Call YOUR function
+    r_reset(arena);
     return NULL;
 }
 
+// Wrapper for r_destroy
+napi_value DestroyArenaWrapper(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1];
+    uint64_t arena_ptr_val;
+    bool lossless;
+
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    napi_get_value_bigint_uint64(env, args[0], &arena_ptr_val, &lossless);
+    arena_t* arena = (arena_t*)arena_ptr_val;
+
+    // Call YOUR function
+    r_destroy(arena);
+    return NULL;
+}
 // initialization of function calls
 napi_value Init(napi_env env, napi_value exports) {
     napi_value fn_init, fn_alloc, fn_free, fn_defrag, 
-    fn_arena_init, fn_arena_alloc, fn_arena_reset;
+    fn_arena_init, fn_arena_alloc, fn_arena_reset, fn_arena_destroy;
 
     // export init_heap
     napi_create_function(env, NULL, 0, InitHeapWrapper, NULL, &fn_init);
@@ -101,23 +138,25 @@ napi_value Init(napi_env env, napi_value exports) {
 
     // export r_alloc
     napi_create_function(env, NULL, 0, AllocWrapper, NULL, &fn_alloc);
-    napi_set_named_property(env, exports, "alloc", fn_alloc);
+    napi_set_named_property(env, exports, "rAlloc", fn_alloc);
     // export r_free
     napi_create_function(env, NULL, 0, FreeWrapper, NULL, &fn_free);
-    napi_set_named_property(env, exports, "free", fn_free);
+    napi_set_named_property(env, exports, "rFree", fn_free);
     //export r_defrag
     napi_create_function(env, NULL, 0, DefragWrapper, NULL, &fn_defrag);
-    napi_set_named_property(env, exports, "defrag", fn_defrag);
+    napi_set_named_property(env, exports, "rDefrag", fn_defrag);
     //export arena_init
-    napi_create_function(env, NULL, 0, ArenaInitWrapper, NULL, &fn_arena_init);
-    napi_set_named_property(env, exports, "initArenas", fn_arena_init);
+    napi_create_function(env, NULL, 0, CreateArenaWrapper, NULL, &fn_arena_init);
+    napi_set_named_property(env, exports, "createArena", fn_arena_init);
     //export arena_alloc
     napi_create_function(env, NULL, 0, ArenaAllocWrapper, NULL, &fn_arena_alloc);
-    napi_set_named_property(env, exports, "arenaAlloc", fn_arena_alloc);
+    napi_set_named_property(env, exports, "rArena", fn_arena_alloc);
     //export arena_reset
     napi_create_function(env, NULL, 0, ArenaResetWrapper, NULL, &fn_arena_reset);
-    napi_set_named_property(env, exports, "arenaReset", fn_arena_reset);
+    napi_set_named_property(env, exports, "rReset", fn_arena_reset);
 
+    napi_create_function(env, NULL, 0, DestroyArenaWrapper, NULL, &fn_arena_destroy);
+    napi_set_named_property(env, exports, "rDestroy", fn_arena_destroy);
     return exports;
 }
 
