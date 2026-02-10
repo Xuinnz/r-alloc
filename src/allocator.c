@@ -35,7 +35,6 @@ void init_heap(){
 	my_heap.start -> inuse = false;
 	my_heap.start -> next = NULL;
 	
-	printf("Heap Initialized. Overhead per block: %zu bytes\n", sizeof(struct heapchunk_t));
 }
 //my custom alloc
 void *r_alloc(uint32_t size){
@@ -59,12 +58,9 @@ void *r_alloc(uint32_t size){
 				current -> inuse = true;
 				//link to the new neighbor
 				current -> next = new_chunk;
-				printf("Split! Allocated %u bytes, Remaining: %u \n"
-						, size, new_chunk -> size);
 			} else {
 				//not enough space to split, give all
 				current -> inuse = true;
-				printf("Taken whole block: %u bytes. \n", current -> size);
 			}
 			//return pointer to the data
 			return (void *)(current + 1);
@@ -80,14 +76,11 @@ void r_free(void *ptr){
 
 	struct heapchunk_t *current = (struct heapchunk_t*) ptr - 1;
 	current -> inuse =false;
-	printf("Freed block at %p (Size: %u)\n", ptr, current->size);
 
 	while(current -> next && current -> next -> inuse == false){
-		printf("Coalesce in progress!\n");
 		current -> size += sizeof(struct heapchunk_t) + current -> next -> size;
 		current -> next = current -> next -> next;
 	}
-	printf("Block is now %u bytes\n", current -> size);
 }
 
 void r_defrag(){
@@ -103,6 +96,5 @@ void r_defrag(){
 			current = current -> next;
 		}
 	}
-	printf("Defrag Complete. Merged %d blocks", merges);
 }
 

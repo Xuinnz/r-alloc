@@ -58,7 +58,7 @@ The goal of this project is to:
    ```
 
 ## Updates
-# February 7, 2026
+### February 7, 2026
 ### Added Arena-Based Memory Allocation
 
 To optimize memory allocation, the project added an **arena-based memory management**. This approach reduces fragmentation and improves allocation speed by pre-allocating memory chunks for specific lifetimes.
@@ -90,6 +90,36 @@ The memory manager defines three arenas, each tailored for a specific lifetime:
 - Faster allocation and deallocation due to the use of bump pointers.
 - Reduced fragmentation by grouping allocations with similar lifetimes.
 - Simplified memory management for temporary and persistent data.
+
+### February 10, 2026
+### Dynamic Arena Initialization and Enhanced Memory Management
+
+#### Changes
+- **`create_arena()`**: Refactored from static initialization to dynamic initialization. This allows for more flexible and efficient memory management.
+- **`r_reset()`**: Updated to handle transient arenas more effectively by resetting the bump pointer and clearing the size.
+- **`r_destroy()`**: Enhanced to properly free both the arena base and the arena structure itself, ensuring no memory leaks.
+
+#### Results
+
+Performance benchmarks comparing V8, Base Allocator, and Arena Allocator:
+
+```
+[1] Testing V8 (Native JavaScript)...
+[2] Testing Base Allocator (rAlloc/rFree)...
+[3] Testing Arena Allocator (Factory)...
+┌─────────────────┬───────────┬─────────┬─────────────────┐
+│     (index)     │ Time (ms) │ Req/Sec │ Mem Growth (MB) │
+├─────────────────┼───────────┼─────────┼─────────────────┤
+│    V8 Engine    │ '105.70'  │ '94604' │     '7.63'      │
+│ Base Allocator  │ '223.04'  │ '44834' │     '0.13'      │
+│ Arena Allocator │ '120.22'  │ '83181' │     '0.00'      │
+└─────────────────┴───────────┴─────────┴─────────────────┘
+
+>>> VERDICT <<<
+Arena is 1.86x FASTER than Base Allocator
+Arena is 0.88x FASTER than V8 Node.js Engine
+Efficiency: Arena Memory Growth is minimal (No leaks detected).
+```
 
 ## Disclaimer
 

@@ -32,8 +32,6 @@ void* r_arena(arena_t* arena, size_t size){
             return ptr;
         }
     }
-
-    printf("Arena Overflow! Capacity: %lu\n", arena->capacity);
     return NULL;
 }
 
@@ -41,10 +39,6 @@ void r_reset(arena_t* arena){
     if (arena && arena -> policy == LIFETIME_TRANSIENT){
         arena -> current = arena -> base;
         arena -> size = 0;
-        printf("Arena Reset (Transient)");
-    }
-    else {
-        printf("Warning: r_reset only for transient lifetimes");
     }
 }
 

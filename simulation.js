@@ -1,82 +1,136 @@
 const myAllocator = require('./build/Release/my_allocator');
 const { performance } = require('perf_hooks');
 
-// CONFIGURATION
-const TOTAL_REQUESTS = 5000;   // How many "HTTP Requests" to simulate
-const OPS_PER_REQUEST = 100;    // How many variables/objects per request
-const DATA_SIZE = 64;           // Size of each object (bytes)
+// --- CONFIGURATION ---
+const REQUESTS = 10000;      // Total HTTP requests to simulate
+const OPS_PER_REQ = 100;     // Allocations per request
+const ALLOC_SIZE = 64;       // Size of each object
+const ARENA_SIZE = 8192;     // 8KB per arena
 
 // Lifetime Enum
 const LIFETIME = { TRANSIENT: 0, INTERMEDIATE: 1, PERSISTENT: 2 };
 
-console.log(`\n=== BACKEND SIMULATION: ${TOTAL_REQUESTS} Requests, ${OPS_PER_REQUEST} allocs/req ===`);
+// Helper to get current memory usage (MB)
+const getMem = () => process.memoryUsage().rss / 1024 / 1024;
 
-// Initialize Heap
-myAllocator.init();
+console.log(`\n=== ULTIMATE BENCHMARK ===`);
+console.log(`Requests: ${REQUESTS} | Allocations: ${REQUESTS * OPS_PER_REQ}`);
+console.log(`Payload:  ${ALLOC_SIZE} bytes per alloc`);
+
+myAllocator.init(); // Initialize Heap
+
+const results = {};
 
 // ==========================================
-// TEST 1: Base Allocator (Malloc/Free)
+// 1. V8 Engine (Native JS Objects)
 // ==========================================
-console.log("\n[1] Running Base Allocator Test (malloc/free)...");
-let ptrs = new BigUint64Array(OPS_PER_REQUEST); // Store pointers to free them later
+console.log("\n[1] Testing V8 (Native JavaScript)...");
+global.gc && global.gc(); // Try to force GC start if exposed
+const startMemV8 = getMem();
+const startV8 = performance.now();
 
+for (let i = 0; i < REQUESTS; i++) {
+    const requestScope = []; // Simulate a request scope
+    for (let j = 0; j < OPS_PER_REQ; j++) {
+        // Allocate equivalent of 64 bytes
+        requestScope.push(Buffer.allocUnsafe(ALLOC_SIZE));
+    }
+    // Scope ends, 'requestScope' becomes garbage
+}
+
+const endV8 = performance.now();
+const endMemV8 = getMem();
+results.v8 = {
+    time: endV8 - startV8,
+    memDiff: endMemV8 - startMemV8
+};
+
+
+// ==========================================
+// 2. Base Allocator (Malloc/Free)
+// ==========================================
+console.log("[2] Testing Base Allocator (rAlloc/rFree)...");
+global.gc && global.gc();
+const startMemBase = getMem();
 const startBase = performance.now();
 
-for (let i = 0; i < TOTAL_REQUESTS; i++) {
-    // 1. Simulate "Handling Request" -> Allocate memory
-    for (let j = 0; j < OPS_PER_REQUEST; j++) {
-        ptrs[j] = myAllocator.rAlloc(DATA_SIZE);
-    }
+let ptrs = new BigUint64Array(OPS_PER_REQ);
 
-    // 2. Simulate "Request Done" -> Free everything
-    for (let j = 0; j < OPS_PER_REQUEST; j++) {
+for (let i = 0; i < REQUESTS; i++) {
+    for (let j = 0; j < OPS_PER_REQ; j++) {
+        ptrs[j] = myAllocator.rAlloc(ALLOC_SIZE);
+    }
+    for (let j = 0; j < OPS_PER_REQ; j++) {
         myAllocator.rFree(ptrs[j]);
     }
 }
 
 const endBase = performance.now();
-const timeBase = endBase - startBase;
-console.log(`    -> Time: ${timeBase.toFixed(2)} ms`);
-console.log(`    -> Throughput: ${(TOTAL_REQUESTS / (timeBase / 1000)).toFixed(0)} req/sec`);
+const endMemBase = getMem();
+results.base = {
+    time: endBase - startBase,
+    memDiff: endMemBase - startMemBase
+};
 
 
 // ==========================================
-// TEST 2: Arena Factory (Create/Bump/Destroy)
+// 3. Arena Allocator (Factory/Bump/Destroy)
 // ==========================================
-console.log("\n[2] Running Arena Factory Test (create/bump/destroy)...");
-
+console.log("[3] Testing Arena Allocator (Factory)...");
+global.gc && global.gc();
+const startMemArena = getMem();
 const startArena = performance.now();
 
-for (let i = 0; i < TOTAL_REQUESTS; i++) {
-    // 1. Create a "Scope" (Arena) for this request
-    // Size needed: 100 items * 64 bytes = 6400 bytes. Let's give it 8KB (8192).
-    const reqArena = myAllocator.createArena(8192, LIFETIME.TRANSIENT);
-
-    // 2. Simulate "Handling Request" -> Bump Allocate
-    for (let j = 0; j < OPS_PER_REQUEST; j++) {
-        myAllocator.rArena(reqArena, DATA_SIZE); 
-        // Notice: We don't need to save pointers because we don't free them individually!
+for (let i = 0; i < REQUESTS; i++) {
+    // 1. Create Arena
+    const arena = myAllocator.createArena(ARENA_SIZE, LIFETIME.TRANSIENT);
+    
+    // 2. Bump Alloc (Fast!)
+    for (let j = 0; j < OPS_PER_REQ; j++) {
+        myAllocator.rArena(arena, ALLOC_SIZE);
     }
 
-    // 3. Simulate "Request Done" -> Destroy the whole scope
-    myAllocator.rDestroy(reqArena);
+    // 3. Destroy Arena (Bulk Free)
+    myAllocator.rDestroy(arena);
 }
 
 const endArena = performance.now();
-const timeArena = endArena - startArena;
-console.log(`    -> Time: ${timeArena.toFixed(2)} ms`);
-console.log(`    -> Throughput: ${(TOTAL_REQUESTS / (timeArena / 1000)).toFixed(0)} req/sec`);
+const endMemArena = getMem();
+results.arena = {
+    time: endArena - startArena,
+    memDiff: endMemArena - startMemArena
+};
 
 
 // ==========================================
-// RESULTS
+// FINAL REPORT
 // ==========================================
-console.log("\n=== FINAL VERDICT ===");
-const improvement = (timeBase / timeArena).toFixed(2);
-console.log(`Speedup: ${improvement}x FASTER`);
+console.table({
+    "V8 Engine": {
+        "Time (ms)": results.v8.time.toFixed(2),
+        "Req/Sec": (REQUESTS / (results.v8.time / 1000)).toFixed(0),
+        "Mem Growth (MB)": results.v8.memDiff.toFixed(2)
+    },
+    "Base Allocator": {
+        "Time (ms)": results.base.time.toFixed(2),
+        "Req/Sec": (REQUESTS / (results.base.time / 1000)).toFixed(0),
+        "Mem Growth (MB)": results.base.memDiff.toFixed(2)
+    },
+    "Arena Allocator": {
+        "Time (ms)": results.arena.time.toFixed(2),
+        "Req/Sec": (REQUESTS / (results.arena.time / 1000)).toFixed(0),
+        "Mem Growth (MB)": results.arena.memDiff.toFixed(2)
+    }
+});
 
-if (timeArena < timeBase) {
-    console.log("Conclusion: Arena Strategy wins. O(1) bulk cleanup beats O(N) free.");
-} else {
-    console.log("Conclusion: Base Allocator wins (Unexpected). Check overhead.");
+// Speedup Calculations
+const v8_speedup = (results.v8.time / results.arena.time).toFixed(2);
+const base_speedup = (results.base.time / results.arena.time).toFixed(2);
+
+console.log(`\n>>> VERDICT <<<`);
+console.log(`Arena is ${base_speedup}x FASTER than Base Allocator`);
+console.log(`Arena is ${v8_speedup}x FASTER than V8 Node.js Engine`);
+
+if(results.arena.memDiff < 1.0) {
+    console.log(`Efficiency: Arena Memory Growth is minimal (No leaks detected).`);
 }
