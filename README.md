@@ -104,9 +104,6 @@ The memory manager defines three arenas, each tailored for a specific lifetime:
 Performance benchmarks comparing V8, Base Allocator, and Arena Allocator:
 
 ```
-[1] Testing V8 (Native JavaScript)...
-[2] Testing Base Allocator (rAlloc/rFree)...
-[3] Testing Arena Allocator (Factory)...
 ┌─────────────────┬───────────┬─────────┬─────────────────┐
 │     (index)     │ Time (ms) │ Req/Sec │ Mem Growth (MB) │
 ├─────────────────┼───────────┼─────────┼─────────────────┤
@@ -115,7 +112,6 @@ Performance benchmarks comparing V8, Base Allocator, and Arena Allocator:
 │ Arena Allocator │ '120.22'  │ '83181' │     '0.00'      │
 └─────────────────┴───────────┴─────────┴─────────────────┘
 
->>> VERDICT <<<
 Arena is 1.86x FASTER than Base Allocator
 Arena is 0.88x FASTER than V8 Node.js Engine
 Efficiency: Arena Memory Growth is minimal (No leaks detected).
@@ -160,10 +156,21 @@ Efficiency: Arena Memory Growth is minimal (No leaks detected).
   └───────────┴────────┴────────┴────────┴────────┴─────────┴─────────┴────────┘
   ```
 
+- **RSS and Fragmentation Test**:
+  ```
+
+  Ops: 995000 | Sessions: 1394 | RSS: 74.49 MB
+
+  Final RSS: 74.49 MB
+  Peak RSS:  74.49 MB
+  ```
+
 - **Observations**:
   - **Throughput**: 2,072 req/sec, approximately 16% slower on raw throughput compared to V8 due to the Bridge Tax.
   - **Stability**: Standard deviation of 6.76 ms, making it 32% more stable than V8.
   - **Worst-Case Performance**: Maximum latency of 125 ms, which is ~30% faster than V8's worst-case scenario.
+  - **Memory Efficiency**: Achieved a 43.5% reduction in Peak RSS usage vs V8 (74.49 MB vs 132.02 MB).
+  - **Memory Stability**: 0% deviation between Peak and Final RSS, the Arena Allocator maintained perfect memory stability.
 
 ## Disclaimer
 
