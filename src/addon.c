@@ -127,10 +127,38 @@ napi_value DestroyArenaWrapper(napi_env env, napi_callback_info info) {
     r_destroy(arena);
     return NULL;
 }
+napi_value ArenaFreeWrapper(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value args[3];
+    uint64_t arena_ptr_val;
+    uint64_t item_ptr_val;
+    uint32_t size;
+    bool lossless;
+
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+
+    // 1. Get Arena Handle
+    napi_get_value_bigint_uint64(env, args[0], &arena_ptr_val, &lossless);
+    arena_t* arena = (arena_t*)arena_ptr_val;
+
+    // 2. Get Item Pointer to Free
+    napi_get_value_bigint_uint64(env, args[1], &item_ptr_val, &lossless);
+    void* ptr = (void*)item_ptr_val;
+
+    // 3. Get Size (Crucial for Slab!)
+    napi_get_value_uint32(env, args[2], &size);
+
+    // Call the Free function
+    r_arena_free(arena, ptr, size);
+
+    return NULL;
+}
+
 // initialization of function calls
 napi_value Init(napi_env env, napi_value exports) {
     napi_value fn_init, fn_alloc, fn_free, fn_defrag, 
-    fn_arena_init, fn_arena_alloc, fn_arena_reset, fn_arena_destroy;
+    fn_arena_init, fn_arena_alloc, fn_arena_reset, fn_arena_destroy,
+    fn_arena_free;
 
     // export init_heap
     napi_create_function(env, NULL, 0, InitHeapWrapper, NULL, &fn_init);
@@ -157,6 +185,9 @@ napi_value Init(napi_env env, napi_value exports) {
 
     napi_create_function(env, NULL, 0, DestroyArenaWrapper, NULL, &fn_arena_destroy);
     napi_set_named_property(env, exports, "rDestroy", fn_arena_destroy);
+
+    napi_create_function(env, NULL, 0, ArenaFreeWrapper, NULL, &fn_arena_free);
+    napi_set_named_property(env, exports, "rArenaFree", fn_arena_free);
     return exports;
 }
 
