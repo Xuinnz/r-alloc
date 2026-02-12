@@ -121,6 +121,50 @@ Arena is 0.88x FASTER than V8 Node.js Engine
 Efficiency: Arena Memory Growth is minimal (No leaks detected).
 ```
 
+### February 12, 2026
+### Implemented Slab Allocator and Enhanced Testing
+
+#### Changes
+- **Slab Allocator**: Added `slab_cache` and `slab_slot` for efficient memory allocation. These structures optimize memory usage by grouping allocations of similar sizes and reducing fragmentation.
+- **Heap Size Fix**: Corrected heap size calculation in `allocator.c` to ensure proper memory allocation and avoid overflows.
+
+#### Testing
+- **Backend Simulation**:
+  ```
+  === STARTING BACKEND SIMULATION ===
+
+  Target: 100000 requests
+  Time:        182.88 ms
+  Throughput:  546802 req/sec
+  Peak Users:  65
+  Final Heap:  53.95 MB
+  ```
+- **Express Web Server**:
+  ```
+  Running 10s test @ http://localhost:3000/arena
+
+  100 connections
+
+  ┌─────────┬───────┬───────┬───────┬───────┬──────────┬─────────┬────────┐
+  │ Stat    │ 2.5%  │ 50%   │ 97.5% │ 99%   │ Avg      │ Stdev   │ Max    │
+  ├─────────┼───────┼───────┼───────┼───────┼──────────┼─────────┼────────┤
+  │ Latency │ 42 ms │ 46 ms │ 61 ms │ 69 ms │ 47.72 ms │ 6.76 ms │ 125 ms │
+  └─────────┴───────┴───────┴───────┴───────┴──────────┴─────────┴────────┘
+
+  ┌───────────┬────────┬────────┬────────┬────────┬─────────┬─────────┬────────┐
+  │ Stat      │ 1%     │ 2.5%   │ 50%    │ 97.5%  │ Avg     │ Stdev   │ Min    │
+  ├───────────┼────────┼────────┼────────┼────────┼─────────┼─────────┼────────┤
+  │ Req/Sec   │ 1,784  │ 1,784  │ 2,089  │ 2,199  │ 2,072.9 │ 110.16  │ 1,784  │
+  ├───────────┼────────┼────────┼────────┼────────┼─────────┼─────────┼────────┤
+  │ Bytes/Sec │ 432 kB │ 432 kB │ 506 kB │ 532 kB │ 502 kB  │ 26.6 kB │ 432 kB │
+  └───────────┴────────┴────────┴────────┴────────┴─────────┴─────────┴────────┘
+  ```
+
+- **Observations**:
+  - **Throughput**: 2,072 req/sec, approximately 16% slower on raw throughput compared to V8 due to the Bridge Tax.
+  - **Stability**: Standard deviation of 6.76 ms, making it 32% more stable than V8.
+  - **Worst-Case Performance**: Maximum latency of 125 ms, which is ~30% faster than V8's worst-case scenario.
+
 ## Disclaimer
 
 This project is for **educational purposes only** and is not intended for production use. It is designed to help developers understand the basics of memory management and the interaction between C/C++ and JavaScript through N-API.
