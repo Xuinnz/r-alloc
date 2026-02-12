@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-
+#define HEAP_SIZE (64 * 1024 * 1024)
 //header
 struct heapchunk_t{
 	uint32_t size;
@@ -22,18 +22,17 @@ struct heapinfo_t my_heap;
 
 // initialize heap
 void init_heap(){
-	size_t page_size = getpagesize();
-	void *ptr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	void *ptr = mmap(NULL, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (ptr == MAP_FAILED){
 		perror("mmap failed");
 		return;
 	}
 	my_heap.start = (struct heapchunk_t *)ptr;
-	my_heap.avail = page_size -sizeof(struct heapchunk_t);
 
-	my_heap.start -> size = page_size - sizeof(struct heapchunk_t);
+	my_heap.start -> size = HEAP_SIZE - sizeof(struct heapchunk_t);
 	my_heap.start -> inuse = false;
 	my_heap.start -> next = NULL;
+	my_heap.avail = my_heap.start -> size;
 	
 }
 //my custom alloc
