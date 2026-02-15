@@ -27,8 +27,9 @@ void init_slab_cache(arena_t* arena){
 }
 
 arena_t* create_arena(size_t size, lifetime_t policy){
-    arena_t* new_arena = (arena_t*)r_alloc(sizeof(arena_t));
-    new_arena->base = r_alloc(size);
+    arena_t* new_arena = (arena_t*)r_alloc(sizeof(arena_t), 0); 
+    if (!new_arena) return NULL; // Safety check
+    new_arena->base = r_alloc(size, 0);
     new_arena->current = new_arena->base;
     new_arena->size = 0;
     new_arena->capacity = size;

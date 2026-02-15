@@ -31,7 +31,7 @@ typedef struct arena_t {
 } arena_t;
 
 arena_t* create_arena(size_t size, lifetime_t policy);
-void* r_arena(arena_t* arena, size_t size);
+void* r_arena(arena_t* arena, size_t size, uint32_t site_id);
 void r_reset(arena_t* arena);
 void r_destroy(arena_t* arena);
 
